@@ -1,0 +1,22 @@
+{
+  "weights": {
+    "ic": 0.35,
+    "t": 0.25,
+    "raic": 0.20,
+    "spread": 0.10,
+    "mono": 0.10
+  },
+
+  "horizon_weights": {
+    "1D": 0.1,
+    "5D": 0.3,
+    "10D": 0.6
+  },
+
+  "thresholds": {
+    "ic_abs": 0.02,
+    "t_abs": 2.0,
+    "raic_abs": 0.10,
+    "mono_min": 0.70
+  }
+}
