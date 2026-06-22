@@ -18,26 +18,12 @@ from pathlib import Path
 
 import pandas as pd
 
+from config.paths import FACTOR_LIST_PATH, SUMMARY_DIR
 
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
-FACTOR_LIST_FILE = (
-    PROJECT_ROOT
-    / "factors_testing"
-    / "factor_list.txt"
-)
-
-RANKING_FILE = (
-    PROJECT_ROOT
-    / "summary"
-    / "factor_ranking.csv"
-)
-
-OUTPUT_FILE = (
-    PROJECT_ROOT
-    / "summary"
-    / "failed_factor_list.txt"
-)
+FACTOR_LIST_FILE = FACTOR_LIST_PATH
+RANKING_FILE = SUMMARY_DIR / "factor_ranking.csv"
+OUTPUT_FILE = SUMMARY_DIR / "failed_factor_list.txt"
 
 
 def load_requested_factors(path: Path) -> set[str]:

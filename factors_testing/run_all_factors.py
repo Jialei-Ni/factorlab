@@ -5,11 +5,11 @@ Run Alphalens tests for a list of indicators with logging + resume support.
 from __future__ import annotations
 
 import argparse
-import json
 import logging
 import subprocess
 import sys
 import time
+from config.paths import ALPHALENS_PIPELINE_DIR, FACTOR_LIST_PATH, FACTOR_OUTPUT_DIR, LOG_DIR, ROOT
 from pathlib import Path
 
 
@@ -44,7 +44,7 @@ def configure_logging(log_file: Path) -> None:
 def main():
     parser = argparse.ArgumentParser()
 
-    parser.add_argument("--factor-file", default="factors_testing/factor_list.txt")
+    parser.add_argument("--factor-file", default=str(FACTOR_LIST_PATH))
     parser.add_argument("--start", default=DEFAULT_START)
     parser.add_argument("--end", default=DEFAULT_END)
     parser.add_argument("--resume", action="store_true")
@@ -56,8 +56,8 @@ def main():
     if not factor_file.exists():
         raise FileNotFoundError(factor_file)
 
-    log_dir = Path("logs")
-    configure_logging(log_dir / "run_all_factors.log")
+    LOG_DIR.mkdir(parents=True, exist_ok=True)
+    configure_logging(LOG_DIR / "run_all_factors.log")
 
     factors = load_factors(factor_file)
 
@@ -65,7 +65,7 @@ def main():
 
     failures = []
 
-    output_root = Path("output/factors") / f"{args.start}_{args.end}"
+    output_root = FACTOR_OUTPUT_DIR / f"{args.start}_{args.end}"
 
     for idx, factor in enumerate(factors, start=1):
 
@@ -81,19 +81,20 @@ def main():
 
         cmd = [
             sys.executable,
-            "alphalens_pipeline/main.py",
+            str(ROOT / ALPHALENS_PIPELINE_DIR / "main.py"),
             "--factor", "stockstats",
             "--indicator", factor,
             "--start", args.start,
             "--end", args.end,
         ]
 
-        factor_log_file = log_dir / f"{factor}.log"
+        factor_log_file = LOG_DIR / f"{factor}.log"
 
         try:
             with open(factor_log_file, "w", encoding="utf-8") as logf:
                 result = subprocess.run(
                     cmd,
+                    cwd=ROOT,
                     stdout=logf,
                     stderr=subprocess.STDOUT,
                     text=True,
@@ -133,7 +134,7 @@ def main():
             logging.error("FAILED %s (missing outputs)", factor)
             failures.append(factor)
 
-    Path("logs/failed_factors.txt").write_text(
+    (LOG_DIR / "failed_factors.txt").write_text(
         "\n".join(failures),
         encoding="utf-8",
     )

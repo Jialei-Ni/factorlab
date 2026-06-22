@@ -5,6 +5,8 @@ import json
 from datetime import datetime, UTC
 from pathlib import Path
 
+from config.paths import FACTOR_LIST_PATH, FACTOR_OUTPUT_DIR, SUMMARY_DIR
+
 import numpy as np
 import pandas as pd
 from scipy.stats import spearmanr
@@ -121,15 +123,15 @@ def main():
     ap.add_argument("--start", default=DEFAULT_START)
     ap.add_argument("--end", default=DEFAULT_END)
     ap.add_argument("--config", default="ranking_config.json")
-    ap.add_argument("--factor-file", default="factors_testing/factor_list.txt")
+    ap.add_argument("--factor-file", default=str(FACTOR_LIST_PATH))
 
     args = ap.parse_args()
 
     cfg = load_config(Path(args.config))
 
-    root = Path("output/factors") / f"{args.start}_{args.end}"
+    root = FACTOR_OUTPUT_DIR / f"{args.start}_{args.end}"
 
-    factor_file = Path(args.factor_file)
+    factor_file = Path(args.factor_file) if args.factor_file != "" else FACTOR_LIST_PATH
 
     factors = load_factor_list(factor_file)
 
@@ -148,15 +150,14 @@ def main():
 
     df = pd.DataFrame(rows)
 
-    summary_dir = Path("summary")
-    summary_dir.mkdir(exist_ok=True)
+    SUMMARY_DIR.mkdir(parents=True, exist_ok=True)
 
     df["generated_at"] = datetime.now(UTC).isoformat()
     # df["generated_at"] = datetime.utcnow()
     df["start"] = args.start
     df["end"] = args.end
 
-    df.to_csv(summary_dir / "factor_metrics.csv", index=False)
+    df.to_csv(SUMMARY_DIR / "factor_metrics.csv", index=False)
 
     ok = df[df["status"] == "success"].copy()
 
@@ -174,7 +175,7 @@ def main():
     )
 
     ok.sort_values("score", ascending=False).to_csv(
-        summary_dir / "factor_ranking.csv",
+        SUMMARY_DIR / "factor_ranking.csv",
         index=False,
     )
 
@@ -187,7 +188,7 @@ def main():
         & (ok["mono_10D"] > t["mono_min"])
     ]
 
-    top.to_csv(summary_dir / "top_factors.csv", index=False)
+    top.to_csv(SUMMARY_DIR / "top_factors.csv", index=False)
 
 
 if __name__ == "__main__":

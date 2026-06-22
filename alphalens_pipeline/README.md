@@ -163,3 +163,19 @@ Alphalens Adapter
    ↓
 output/ (tear sheets + CSVs)
 ```
+
+---
+
+## Running
+
+Run all commands from the repository root.
+
+Correct:
+
+    python -m factors_testing.run_all_factors
+
+    python -m factors_testing.summarize_factors
+
+Avoid:
+
+    python factors_testing/run_all_factors.py

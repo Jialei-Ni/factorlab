@@ -58,11 +58,14 @@ def _fetch_single(ticker: str, start: str, end: str, cache_dir: str) -> pd.DataF
 
 # ── Public API ────────────────────────────────────────────────────────────────
 
+from config.paths import CACHE_DIR
+
+
 def load_universe(
     universe: list[str],
     start: str,
     end: str,
-    cache_dir: str = "data/cache",
+    cache_dir: str = str(CACHE_DIR),
 ) -> tuple[pd.DataFrame, pd.DataFrame, dict[str, pd.DataFrame]]:
     """
     Fetch full OHLCV for every ticker in *universe*.

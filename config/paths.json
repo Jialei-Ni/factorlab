@@ -1,0 +1,10 @@
+{
+  "DATA_DIR": "data",
+  "CACHE_DIR": "data/cache",
+  "OUTPUT_DIR": "output",
+  "SUMMARY_DIR": "summary",
+  "LOG_DIR": "logs",
+  "FACTOR_LIST_PATH": "factors_testing/factor_list.txt",
+  "FACTORS_TESTING_DIR": "factors_testing",
+  "ALPHALENS_PIPELINE_DIR": "alphalens_pipeline"
+}

@@ -64,12 +64,15 @@ def _save_tearsheet(tear_fn, path: str, *args, **kwargs):
 
 # ── Public API ────────────────────────────────────────────────────────────────
 
+from config.paths import FACTOR_OUTPUT_DIR
+
+
 def run_alphalens(
     factor: pd.Series,
     prices: pd.DataFrame,
     quantiles: int = 5,
     periods: tuple = (1, 5, 10),
-    output_dir: str = "output",
+    output_dir: str = str(FACTOR_OUTPUT_DIR),
 ) -> pd.DataFrame:
     """
     Run the full Alphalens evaluation suite and save results.

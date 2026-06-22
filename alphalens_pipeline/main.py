@@ -19,16 +19,22 @@ Output hierarchy
         ...
 """
 
-import sys, os, argparse
-sys.path.insert(0, os.path.dirname(__file__))
+import argparse
+import os
+import sys
+from pathlib import Path
 
-from config   import CONFIG
+ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT))
+
+from alphalens_pipeline.config import CONFIG
+from config.paths import CACHE_DIR, FACTOR_OUTPUT_DIR
 from universe import UNIVERSE
 
-from data.fetcher  import load_universe
-from data.cleaner  import clean_prices, compute_returns
-from factors       import build_factor
-from pipeline      import run_pipeline, run_alphalens
+from data.fetcher import load_universe
+from data.cleaner import clean_prices, compute_returns
+from factors import build_factor
+from pipeline import run_pipeline, run_alphalens
 
 
 # ── Output-path construction ──────────────────────────────────────────────────
@@ -52,14 +58,22 @@ def _factor_slug(cfg: dict) -> str:
     return f"{key}_{window}" if window is not None else key
 
 
+def _resolve_path(value: str | Path | None, default: Path) -> Path:
+    if not value:
+        return default
+    path = Path(value)
+    return path if path.is_absolute() else ROOT / path
+
+
 def resolve_output_dir(cfg: dict) -> str:
     """
     Build:  <base_output_dir>/<start>_<end>/<factor_slug>
     """
-    base   = cfg.get("output_dir", "output/factors")
+    default_base = FACTOR_OUTPUT_DIR
+    base = _resolve_path(cfg.get("output_dir"), default_base)
     period = f"{cfg['start_date']}_{cfg['end_date']}"
     slug   = _factor_slug(cfg)
-    return os.path.join(base, period, slug)
+    return str(base / period / slug)
 
 
 # ── CLI ───────────────────────────────────────────────────────────────────────

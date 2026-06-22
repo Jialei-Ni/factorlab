@@ -43,5 +43,5 @@ CONFIG = {
 
     # ── Paths ────────────────────────────────────────────────────
     "cache_dir":  "data/cache",
-    "output_dir": "output",
+    "output_dir": "output/factors",
 }
