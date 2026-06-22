@@ -33,6 +33,8 @@ DATA_DIR = _resolve("DATA_DIR", "data")
 CACHE_DIR = _resolve("CACHE_DIR", "data/cache")
 OUTPUT_DIR = _resolve("OUTPUT_DIR", "output")
 FACTOR_OUTPUT_DIR = OUTPUT_DIR / "factors"
+PORTFOLIO_OUTPUT_DIR = OUTPUT_DIR / "portfolios"
+SIGNAL_CACHE_DIR = CACHE_DIR / "signals"
 SUMMARY_DIR = _resolve("SUMMARY_DIR", "summary")
 LOG_DIR = _resolve("LOG_DIR", "logs")
 FACTOR_LIST_PATH = _resolve("FACTOR_LIST_PATH", "factors_testing/factor_list.txt")
@@ -41,9 +43,26 @@ ALPHALENS_PIPELINE_DIR = _resolve("ALPHALENS_PIPELINE_DIR", "alphalens_pipeline"
 
 
 def ensure_directories() -> None:
-    for directory in (DATA_DIR, CACHE_DIR, OUTPUT_DIR, FACTOR_OUTPUT_DIR, SUMMARY_DIR, LOG_DIR):
+    for directory in (DATA_DIR, CACHE_DIR, OUTPUT_DIR, FACTOR_OUTPUT_DIR,
+                      PORTFOLIO_OUTPUT_DIR, SIGNAL_CACHE_DIR, SUMMARY_DIR, LOG_DIR):
         directory.mkdir(parents=True, exist_ok=True)
 
 
 def alphalens_output_root(start: str, end: str) -> Path:
     return FACTOR_OUTPUT_DIR / f"{start}_{end}"
+
+
+def portfolio_output_root(
+    universe_name: str,
+    start: str,
+    end: str,
+) -> Path:
+    return PORTFOLIO_OUTPUT_DIR / universe_name / f"{start}_{end}"
+
+
+def signal_cache_root(
+    universe_name: str,
+    start: str,
+    end: str,
+) -> Path:
+    return CACHE_DIR / "signals" / universe_name / f"{start}_{end}"

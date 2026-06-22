@@ -29,26 +29,30 @@ def build_factor(config: dict) -> Factor:
     """
     Instantiate the factor named in config["factor"].
 
-    For "stockstats", config["stockstats_indicator"] sets which indicator
-    to compute (default: "rsi_14").
+    For custom factors, use the registered factor builder.
+    If the factor name is not registered, try to resolve it as a
+    StockStats indicator.
     """
     key = config.get("factor", "momentum")
 
-    if key not in FACTOR_REGISTRY:
+    if key in FACTOR_REGISTRY:
+        cls = FACTOR_REGISTRY[key]
+        param_map: dict[str, dict] = {
+            "momentum":       {"window": config.get("momentum_window",       20)},
+            "bollinger":      {"window": config.get("bollinger_window",      20)},
+            "volume":         {"window": config.get("volume_window",         20)},
+            "mean_reversion": {"window": config.get("mean_reversion_window",  5)},
+            "stockstats":     {"indicator": config.get("stockstats_indicator", "rsi_14")},
+        }
+        kwargs = param_map.get(key, {})
+        return cls(**kwargs)
+
+    # Attempt to resolve unknown factor names as StockStats indicators.
+    try:
+        return StockStatsFactor(key)
+    except ValueError as exc:
         raise ValueError(
-            f"Unknown factor '{key}'. "
-            f"Available: {list(FACTOR_REGISTRY.keys())}"
-        )
-
-    cls = FACTOR_REGISTRY[key]
-
-    param_map: dict[str, dict] = {
-        "momentum":       {"window": config.get("momentum_window",       20)},
-        "bollinger":      {"window": config.get("bollinger_window",      20)},
-        "volume":         {"window": config.get("volume_window",         20)},
-        "mean_reversion": {"window": config.get("mean_reversion_window",  5)},
-        "stockstats":     {"indicator": config.get("stockstats_indicator", "rsi_14")},
-    }
-
-    kwargs = param_map.get(key, {})
-    return cls(**kwargs)
+            f"Unknown factor '{key}'. Available custom factors: "
+            f"{list(FACTOR_REGISTRY.keys())}. "
+            f"If this name is a StockStats indicator, use a supported symbol." 
+        ) from exc

@@ -6,8 +6,8 @@ so it is ready for Alphalens.
 """
 
 import pandas as pd
-from factors.base import Factor
-from factors.stockstats_factor import StockStatsFactor
+from alphalens_pipeline.factors.base import Factor
+from alphalens_pipeline.factors.stockstats_factor import StockStatsFactor
 
 
 def run_pipeline(
