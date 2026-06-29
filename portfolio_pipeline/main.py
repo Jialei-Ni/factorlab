@@ -1,14 +1,10 @@
 from __future__ import annotations
 
 import argparse
-import sys
 from datetime import datetime, UTC
 from pathlib import Path
 
 import pandas as pd
-
-ROOT = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(ROOT))
 
 from config.paths import portfolio_output_root
 from portfolio_pipeline.config import DEFAULT_CONFIG
@@ -22,6 +18,8 @@ from portfolio_pipeline.reports import save_portfolio_reports
 from portfolio_pipeline.universe import UNIVERSE
 from portfolio_pipeline.equity_plots import save_performance_plots, export_performance_series
 
+from tools.capm_analysis import run_analysis
+
 
 def _run_id() -> str:
     return datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
@@ -32,6 +30,8 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument("--start", default=None, help="Start date YYYY-MM-DD")
     parser.add_argument("--end", default=None, help="End date YYYY-MM-DD")
     parser.add_argument("--universe-name", default=None, help="Universe name")
+    parser.add_argument("--output_dir", type=str, default=None,
+                        help="Optional custom output directory name (replaces UTC run_id).")
     return parser.parse_args()
 
 
@@ -69,8 +69,10 @@ def main() -> None:
     universe_name = cfg["universe_name"]
     start = cfg["start_date"]
     end = cfg["end_date"]
-    run_id = _run_id()
+    run_id = args.output_dir if args.output_dir else _run_id()
     output_dir = _build_output_directory(universe_name, start, end, run_id)
+    if output_dir.exists():
+        raise ValueError(f"Run directory already exists: {output_dir}")
     output_dir.mkdir(parents=True, exist_ok=True)
 
     print("Portfolio pipeline")
@@ -121,6 +123,13 @@ def main() -> None:
     returns_series = portfolio_returns["portfolio_return"]
     save_performance_plots(returns_series, output_dir)
     export_performance_series(returns_series, output_dir)
+
+    run_analysis(
+        series_path=output_dir / "equity_curve.csv",
+        output_path=output_dir / "capm_analysis.csv",
+        start=start,
+        end=end,
+    )
 
     print("✓ Portfolio backtest complete.")
 

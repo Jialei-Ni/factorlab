@@ -29,12 +29,12 @@ sys.path.insert(0, str(ROOT))
 
 from alphalens_pipeline.config import CONFIG
 from config.paths import CACHE_DIR, FACTOR_OUTPUT_DIR
-from universe import UNIVERSE
+from alphalens_pipeline.universe import UNIVERSE
 
-from data.fetcher import load_universe
-from data.cleaner import clean_prices, compute_returns
-from factors import build_factor
-from pipeline import run_pipeline, run_alphalens
+from alphalens_pipeline.data.fetcher import load_universe
+from alphalens_pipeline.data.cleaner import clean_prices, compute_returns
+from alphalens_pipeline.factors import build_factor
+from alphalens_pipeline.pipeline import run_pipeline, run_alphalens
 
 
 # ── Output-path construction ──────────────────────────────────────────────────
@@ -88,6 +88,7 @@ def parse_args():
                         "e.g. rsi_14, macd, cci, atr, boll_ub, kdjk, mfi")
     p.add_argument("--start",     default=None, help="Start date YYYY-MM-DD")
     p.add_argument("--end",       default=None, help="End date YYYY-MM-DD")
+    p.add_argument("--skip_alphalens", action="store_true")
     return p.parse_args()
 
 
@@ -97,10 +98,11 @@ def main():
     args = parse_args()
     cfg  = CONFIG.copy()
 
-    if args.factor:    cfg["factor"]              = args.factor
+    if args.factor:    cfg["factor"]               = args.factor
     if args.indicator: cfg["stockstats_indicator"] = args.indicator
     if args.start:     cfg["start_date"]           = args.start
     if args.end:       cfg["end_date"]             = args.end
+    cfg["skip_alphalens"]                          = args.skip_alphalens
 
     start, end   = cfg["start_date"], cfg["end_date"]
     output_dir   = resolve_output_dir(cfg)
@@ -132,17 +134,22 @@ def main():
     # ── 4: Factor ─────────────────────────────────────────────────────────────
     print(f"\n[4/5] Computing factor: {factor_label} …")
     factor_engine = build_factor(cfg)
-    factor        = run_pipeline(prices, volume_raw, factor_engine, ohlcv=ohlcv)
+    factor        = run_pipeline(prices, volume_raw, factor_engine, ohlcv=ohlcv, output_dir=output_dir)
 
     # ── 5: Alphalens ──────────────────────────────────────────────────────────
-    print("\n[5/5] Running Alphalens …")
-    factor_data = run_alphalens(
-        factor,
-        prices,
-        quantiles  = cfg["quantiles"],
-        periods    = cfg["periods"],
-        output_dir = output_dir,
-    )
+    if not cfg["skip_alphalens"]:
+        print("\n[5/5] Running Alphalens …")
+        factor_data = run_alphalens(
+            factor,
+            prices,
+            quantiles  = cfg["quantiles"],
+            periods    = cfg["periods"],
+            output_dir = output_dir,
+        )
+    else:
+        print("\n[5/5] Alphalens skipped")
+
+
 
     print("\n✓ Pipeline complete.")
     return factor_data

@@ -1,0 +1,13 @@
+supertrend
+close_20_sma
+boll
+tr
+close_10_mad
+atr
+trix
+kst
+vr
+pvo
+ppo
+eribull
+coppock  

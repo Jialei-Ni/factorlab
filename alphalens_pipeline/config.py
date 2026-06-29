@@ -44,4 +44,7 @@ CONFIG = {
     # ── Paths ────────────────────────────────────────────────────
     "cache_dir":  "data/cache",
     "output_dir": "output/factors",
+
+    # ── Skips alphalens (as to get factor value only) ────────────
+    "skip_alphalens": False,
 }

@@ -48,6 +48,7 @@ def main():
     parser.add_argument("--start", default=DEFAULT_START)
     parser.add_argument("--end", default=DEFAULT_END)
     parser.add_argument("--resume", action="store_true")
+    parser.add_argument("--skip_alphalens", action="store_true")
 
     args = parser.parse_args()
 
@@ -87,6 +88,8 @@ def main():
             "--start", args.start,
             "--end", args.end,
         ]
+        if args.skip_alphalens:
+            cmd.append("--skip_alphalens")
 
         factor_log_file = LOG_DIR / f"{factor}.log"
 
@@ -118,6 +121,7 @@ def main():
         factor_output_dir = output_root / factor
 
         required_files = [
+            factor_output_dir / "factor_values.parquet",
             factor_output_dir / "ic_by_date.csv",
             factor_output_dir / "ic_summary.csv",
             factor_output_dir / "mean_return_by_quantile.csv",

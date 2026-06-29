@@ -73,6 +73,7 @@ def run_alphalens(
     quantiles: int = 5,
     periods: tuple = (1, 5, 10),
     output_dir: str = str(FACTOR_OUTPUT_DIR),
+    save_factor_values_flag: bool = True,
 ) -> pd.DataFrame:
     """
     Run the full Alphalens evaluation suite and save results.
@@ -90,6 +91,9 @@ def run_alphalens(
     factor_data : cleaned factor DataFrame (for further custom analysis)
     """
     os.makedirs(output_dir, exist_ok=True)
+    if save_factor_values_flag:
+        # already saved upstream; this is a safeguard hook
+        pass
 
     # ── 1. Build Alphalens factor_data ────────────────────────────────────────
     print("\nBuilding Alphalens factor_data …")

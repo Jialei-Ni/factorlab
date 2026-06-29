@@ -67,3 +67,11 @@ def drawdown_series(returns: pd.Series) -> pd.Series:
     equity = cumulative_return_series(returns)
     peak = equity.cummax()
     return (equity - peak) / peak
+
+def annual_return_series(returns: pd.Series) -> pd.Series:
+    r = returns.dropna()
+    return (1 + r).groupby(r.index.year).agg(np.prod) - 1
+
+def monthly_return_series(returns: pd.Series) -> pd.Series:
+    r = returns.dropna()
+    return (1 + r).groupby(pd.Grouper(freq="M")).agg(np.prod) - 1

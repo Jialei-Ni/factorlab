@@ -11,6 +11,7 @@ import numpy as np
 import pandas as pd
 from scipy.stats import spearmanr
 from scipy.stats import t as student_t
+import matplotlib.pyplot as plt
 
 
 DEFAULT_START = "2015-01-01"
@@ -117,6 +118,113 @@ def load_factor_list(path: Path) -> list[str]:
     return factors
 
 
+def build_factor_correlation_matrix(
+    root: Path,
+    factors: list[str],
+) -> pd.DataFrame:
+    """
+    Build factor correlation matrix from factor_values.parquet files.
+
+    Correlation is computed across all (date, asset) observations
+    shared by each pair of factors.
+    """
+    factor_frames = []
+
+    for factor in factors:
+
+        factor_file = (
+            root
+            / factor
+            / "factor_values.parquet"
+        )
+
+        if not factor_file.exists():
+            continue
+
+        try:
+            df = pd.read_parquet(factor_file)
+
+            required_cols = {"date", "asset", "factor"}
+
+            if not required_cols.issubset(df.columns):
+                continue
+
+            s = (
+                df
+                .set_index(["date", "asset"])["factor"]
+                .rename(factor)
+            )
+
+            factor_frames.append(s)
+
+        except Exception as e:
+            print(
+                f"WARNING: failed loading "
+                f"{factor_file}: {e}"
+            )
+
+    if not factor_frames:
+        return pd.DataFrame()
+
+    combined = pd.concat(
+        factor_frames,
+        axis=1,
+        join="outer",
+    )
+
+    return combined.corr()
+
+
+def save_factor_abs_correlation_heatmap(
+    corr: pd.DataFrame,
+    output_path: Path,
+) -> None:
+    """Save absolute-correlation heatmap."""
+    if corr.empty:
+        return
+
+    fig, ax = plt.subplots(
+        figsize=(
+            max(8, len(corr) * 0.4),
+            max(8, len(corr) * 0.4),
+        )
+    )
+
+    im = ax.imshow(corr.abs(), aspect="auto")
+
+    ax.set_xticks(range(len(corr.columns)))
+    ax.set_yticks(range(len(corr.index)))
+
+    ax.set_xticklabels(
+        corr.columns,
+        rotation=90,
+        fontsize=8,
+    )
+
+    ax.set_yticklabels(
+        corr.index,
+        fontsize=8,
+    )
+
+    fig.colorbar(
+        im,
+        ax=ax,
+        label="|Correlation|",
+    )
+
+    ax.set_title("Factor Absolute Correlation Matrix")
+
+    plt.tight_layout()
+
+    fig.savefig(
+        output_path,
+        dpi=150,
+        bbox_inches="tight",
+    )
+
+    plt.close(fig)
+
+
 def main():
 
     ap = argparse.ArgumentParser()
@@ -158,6 +266,14 @@ def main():
     df["end"] = args.end
 
     df.to_csv(SUMMARY_DIR / "factor_metrics.csv", index=False)
+
+    corr = build_factor_correlation_matrix(root=root, factors=factors)
+
+    if not corr.empty:
+        corr.to_csv(SUMMARY_DIR / "factor_correlation.csv")
+        corr.abs().to_csv(SUMMARY_DIR / "factor_abs_correlation.csv")
+
+        save_factor_abs_correlation_heatmap(corr, SUMMARY_DIR / "factor_abs_correlation_heatmap.png")
 
     ok = df[df["status"] == "success"].copy()
 
