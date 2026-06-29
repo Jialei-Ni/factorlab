@@ -17,7 +17,7 @@ from portfolio_pipeline.metadata import save_metadata, save_config_snapshot
 from portfolio_pipeline.reports import save_portfolio_reports
 from portfolio_pipeline.universe import UNIVERSE
 from portfolio_pipeline.equity_plots import save_performance_plots, export_performance_series
-from portfolio_pipeline.signal_diagnostics import run_signal_diagnostics
+from portfolio_pipeline.signal_diagnostics import run_signal_diagnostics, run_rolling_ic_diagnostics
 from tools.capm_analysis import run_analysis
 
 
@@ -90,9 +90,19 @@ def main() -> None:
         min_data_fraction=cfg["min_data_fraction"],
     )
 
-    run_signal_diagnostics(signals, prices, output_dir)
+    # run_rolling_ic_diagnostics(signals, prices, output_dir, horizon=5, rolling_window=60)
 
     exposures = combine_signals(signals, _signal_weights(cfg))
+
+    composite_signal = exposures["composite_score"].unstack()
+
+    run_rolling_ic_diagnostics(
+        signals=signals,
+        prices=prices,
+        output_dir=output_dir / "diagnostics",
+        composite=composite_signal,
+        signal_weights=_signal_weights(cfg),
+    )
 
     trading_dates = prices.index
     asset_universe = _asset_universe(prices)
