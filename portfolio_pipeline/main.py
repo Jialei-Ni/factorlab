@@ -17,7 +17,7 @@ from portfolio_pipeline.metadata import save_metadata, save_config_snapshot
 from portfolio_pipeline.reports import save_portfolio_reports
 from portfolio_pipeline.universe import UNIVERSE
 from portfolio_pipeline.equity_plots import save_performance_plots, export_performance_series
-
+from portfolio_pipeline.signal_diagnostics import run_signal_diagnostics
 from tools.capm_analysis import run_analysis
 
 
@@ -89,6 +89,8 @@ def main() -> None:
         cache_dir=cfg["cache_dir"],
         min_data_fraction=cfg["min_data_fraction"],
     )
+
+    run_signal_diagnostics(signals, prices, output_dir)
 
     exposures = combine_signals(signals, _signal_weights(cfg))
 
