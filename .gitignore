@@ -62,3 +62,6 @@ run_all_factors.log
 results/
 reports/
 backtests/
+
+# factors list
+factors_testing/*.txt
