@@ -1,6 +1,9 @@
+# portfolio_pipeline/signal_diagnostics.py
+
 from __future__ import annotations
 
 from pathlib import Path
+import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 
@@ -15,13 +18,13 @@ def run_signal_diagnostics(
 
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    # ---- normalize horizons ----
+    # normalize horizons
     if isinstance(horizons, str):
         horizons = tuple(int(x) for x in horizons.split(",") if x.strip())
     else:
         horizons = tuple(int(x) for x in horizons)
 
-    # ---- keep everything vectorized ----
+    # keep everything vectorized
     all_signals = dict(signals)
 
     if composite is not None:
@@ -91,6 +94,104 @@ def _style_ic_axis(ax):
     ax.grid(True)
 
 
+def _compute_rolling_ic(
+    ic_df: pd.DataFrame,
+    window: int,
+) -> pd.DataFrame:
+    """
+    Rolling mean IC.
+    """
+    return ic_df.rolling(window).mean()
+
+
+def _compute_rolling_ic_zscore(
+    ic_df: pd.DataFrame,
+    window: int,
+) -> pd.DataFrame:
+    """
+    Rolling z-score of IC.
+    """
+    mean = ic_df.rolling(window).mean()
+    std = ic_df.rolling(window).std()
+
+    return (ic_df - mean) / (std + 1e-12)
+
+
+def _compute_ic_autocorrelation(
+    ic_df: pd.DataFrame,
+    max_lag: int = 60,
+) -> pd.DataFrame:
+    """
+    Lag autocorrelation of each IC series.
+    """
+    rows = []
+
+    for signal in ic_df.columns:
+
+        s = ic_df[signal].dropna()
+
+        for lag in range(max_lag + 1):
+            rows.append(
+                {
+                    "signal": signal,
+                    "lag": lag,
+                    "autocorrelation": s.autocorr(lag),
+                }
+            )
+
+    return pd.DataFrame(rows)
+
+
+def _compute_sign_persistence(
+    ic_df: pd.DataFrame,
+) -> pd.DataFrame:
+    """
+    Statistics of consecutive positive/negative IC runs.
+    """
+    rows = []
+
+    for signal in ic_df.columns:
+
+        s = ic_df[signal].dropna()
+
+        if s.empty:
+            continue
+
+        signs = s > 0
+
+        runs = []
+
+        current = signs.iloc[0]
+        length = 1
+
+        for value in signs.iloc[1:]:
+
+            if value == current:
+                length += 1
+            else:
+                runs.append((current, length))
+                current = value
+                length = 1
+
+        runs.append((current, length))
+
+        positive = [l for sign, l in runs if sign]
+        negative = [l for sign, l in runs if not sign]
+
+        rows.append(
+            {
+                "signal": signal,
+                "positive_mean": np.mean(positive) if positive else np.nan,
+                "positive_max": np.max(positive) if positive else np.nan,
+                "negative_mean": np.mean(negative) if negative else np.nan,
+                "negative_max": np.max(negative) if negative else np.nan,
+                "flip_count": len(runs) - 1,
+            }
+        )
+
+    return pd.DataFrame(rows)
+    
+
 def run_rolling_ic_diagnostics(
     signals: dict[str, pd.DataFrame],
     prices: pd.DataFrame,
@@ -103,7 +204,6 @@ def run_rolling_ic_diagnostics(
 
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    # forward returns once (shared)
     forward_returns = prices.shift(-horizon).div(prices).sub(1.0)
 
     signals = dict(signals)
@@ -115,69 +215,103 @@ def run_rolling_ic_diagnostics(
 
     rows = []
 
-    # 1. compute IC time series
-    for name, signal in signals.items():
-        ic_ts = _compute_ic_timeseries(signal, forward_returns)
-        ic_series_map[name] = ic_ts
+    # Compute IC time series
 
-        rolling_ic = ic_ts.rolling(rolling_window).mean()
+    for name, signal in signals.items():
+
+        ic_ts = _compute_ic_timeseries(signal, forward_returns)
+
+        ic_series_map[name] = ic_ts
 
         rows.append(
             {
                 "signal": name,
                 "horizon": horizon,
                 "mean_ic": ic_ts.mean(),
-                "rolling_mean_ic": rolling_ic.mean(),
-                "rolling_std_ic": rolling_ic.std(),
-                "stability": ic_ts.rolling(rolling_window).std().mean(),
+                "std_ic": ic_ts.std(),
+                "ic_ir": ic_ts.mean() / (ic_ts.std() + 1e-12),
+                "hit_rate": (ic_ts > 0).mean(),
+                "observations": len(ic_ts),
             }
         )
 
-    # 2. weighted IC (FIXED + aligned)
+    ic_df = pd.DataFrame(ic_series_map)
+
+    # Composite weighted IC
+
     weighted_ic_series = None
 
     if signal_weights is not None:
 
         aligned_weights = {
-            k: v for k, v in signal_weights.items() if k in ic_series_map
+            k: v
+            for k, v in signal_weights.items()
+            if k in ic_df.columns
         }
 
-        total = sum(abs(w) for w in aligned_weights.values()) or 1.0
-        aligned_weights = {k: w / total for k, w in aligned_weights.items()}
+        total = sum(abs(v) for v in aligned_weights.values()) or 1.0
 
-        aligned = []
-        for k, w in aligned_weights.items():
-            aligned.append(ic_series_map[k].rename(k) * w)
+        aligned_weights = {
+            k: v / total
+            for k, v in aligned_weights.items()
+        }
 
-        if aligned:
-            ic_mat = pd.concat(aligned, axis=1).fillna(0.0)
-            weighted_ic_series = ic_mat.sum(axis=1)
+        weighted_ic_series = sum(
+            ic_df[k].fillna(0.0) * w
+            for k, w in aligned_weights.items()
+        )
 
-            r = weighted_ic_series.rolling(rolling_window).mean()
+        ic_df["__weighted__"] = weighted_ic_series
 
-            rows.append(
-                {
-                    "signal": "__weighted__",
-                    "horizon": horizon,
-                    "mean_ic": weighted_ic_series.mean(),
-                    "rolling_mean_ic": r.mean(),
-                    "rolling_std_ic": r.std(),
-                    "stability": r.std(),
-                }
-            )
+    # Additional diagnostics
 
-            weighted_ic_series.to_csv(
-                output_dir / "weighted_ic_timeseries.csv",
-                header=["weighted_ic"],
-            )
+    rolling_ic = _compute_rolling_ic(
+        ic_df,
+        rolling_window,
+    )
 
-    # 3. save summary
-    summary = pd.DataFrame(rows)
-    summary.to_csv(output_dir / "rolling_ic_summary.csv", index=False)
+    rolling_zscore = _compute_rolling_ic_zscore(
+        ic_df,
+        rolling_window,
+    )
 
-    # 4. export full time series
-    ic_df = pd.DataFrame(ic_series_map)
-    ic_df.to_csv(output_dir / "rolling_ic_timeseries.csv")
+    autocorrelation = _compute_ic_autocorrelation(
+        ic_df,
+        max_lag=60,
+    )
+
+    sign_persistence = _compute_sign_persistence(
+        ic_df,
+    )
+
+    # Export tables
+
+    pd.DataFrame(rows).to_csv(
+        output_dir / "rolling_ic_summary.csv",
+        index=False,
+    )
+
+    ic_df.to_csv(
+        output_dir / "rolling_ic_timeseries.csv"
+    )
+
+    rolling_ic.to_csv(
+        output_dir / "rolling_ic.csv"
+    )
+
+    rolling_zscore.to_csv(
+        output_dir / "rolling_ic_zscore.csv"
+    )
+
+    autocorrelation.to_csv(
+        output_dir / "ic_autocorrelation.csv",
+        index=False,
+    )
+
+    sign_persistence.to_csv(
+        output_dir / "sign_persistence.csv",
+        index=False,
+    )
 
     # 5. plot rolling IC of individual signals
     fig, ax = plt.subplots(figsize=(12, 6))

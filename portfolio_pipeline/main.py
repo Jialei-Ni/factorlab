@@ -30,7 +30,7 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument("--start", default=None, help="Start date YYYY-MM-DD")
     parser.add_argument("--end", default=None, help="End date YYYY-MM-DD")
     parser.add_argument("--universe-name", default=None, help="Universe name")
-    parser.add_argument("--output_dir", type=str, default=None,
+    parser.add_argument("--run_id", type=str, default=None,
                         help="Optional custom output directory name (replaces UTC run_id).")
     return parser.parse_args()
 
@@ -69,7 +69,7 @@ def main() -> None:
     universe_name = cfg["universe_name"]
     start = cfg["start_date"]
     end = cfg["end_date"]
-    run_id = args.output_dir if args.output_dir else _run_id()
+    run_id = args.run_id if args.run_id else _run_id()
     output_dir = _build_output_directory(universe_name, start, end, run_id)
     if output_dir.exists():
         raise ValueError(f"Run directory already exists: {output_dir}")
